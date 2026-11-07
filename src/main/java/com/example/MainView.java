@@ -2,8 +2,9 @@ package com.example;
 
 import java.time.LocalDateTime;
 
-import com.example.model.Categoria;
+
 import com.example.model.Mesero;
+import com.example.model.Plato;
 import com.example.model.Proveedor;
 import com.example.model.Usuario;
 import com.example.service.CrudService;
@@ -37,7 +38,7 @@ public class MainView extends VerticalLayout {
         TabSheet tabs = new TabSheet();
         tabs.setWidthFull();
         tabs.add("Meseros", crearSeccionMeseros());
-        tabs.add("Categorías", crearSeccionCategorias());
+        tabs.add("Platos", crearSeccionPlatos());
         tabs.add("Proveedores", crearSeccionProveedores());
         tabs.add("Usuarios", crearSeccionUsuarios());
 
@@ -167,75 +168,105 @@ public class MainView extends VerticalLayout {
 }
 
     // ==========================================
-    // 2. CATEGORÍAS
+    // 2. Platos
     // ==========================================
-    private Component crearSeccionCategorias() {
+@SuppressWarnings("null")
+	private Component crearSeccionPlatos() {
         VerticalLayout layout = new VerticalLayout();
         TextField idField = new TextField("ID");
         TextField nombreField = new TextField("Nombre");
-        TextField descripcionField = new TextField("Descripción");
+        TextField codigoField = new TextField("Código de Menú");
+        TextField categoriaField = new TextField("Categoría");
+        TextField precioField = new TextField("Precio");
+        TextField stockField = new TextField("Disponible (true/false)");
 
-        FormLayout form = new FormLayout(idField, nombreField, descripcionField);
+        FormLayout form = new FormLayout(idField, nombreField, codigoField, categoriaField, precioField, stockField);
 
-        Grid<Categoria> grid = new Grid<>(Categoria.class, false);
-        grid.addColumn(c -> c.getId()).setHeader("ID").setAutoWidth(true);
-        grid.addColumn(c -> c.getNombre()).setHeader("Nombre").setAutoWidth(true);
-        grid.addColumn(c -> c.getDescripcion()).setHeader("Descripción").setAutoWidth(true);
+        Grid<Plato> grid = new Grid<>(Plato.class, false);
+        grid.addColumn(Plato::getCodigoMenu).setHeader("Código de Menú").setAutoWidth(true);
+        grid.addColumn(Plato::getId).setHeader("ID").setAutoWidth(true);
+        grid.addColumn(Plato::getNombre).setHeader("Nombre").setAutoWidth(true);
+        grid.addColumn(Plato::getCategoria).setHeader("Categoría").setAutoWidth(true);
+        grid.addColumn(Plato::getPrecio).setHeader("Precio").setAutoWidth(true);
+        grid.addColumn(Plato::getDisponible).setHeader("Disponible").setAutoWidth(true);
 
-        Runnable refrescar = () -> grid.setItems(crudService.listarTodos(Categoria.class));
+        Runnable refrescar = () -> grid.setItems(crudService.listarTodos(Plato.class));
         refrescar.run();
 
         grid.asSingleSelect().addValueChangeListener(e -> {
-            Categoria c = e.getValue();
+            Plato c = e.getValue();
             if (c != null) {
                 idField.setValue(c.getId() != null ? c.getId().toString() : "");
+                codigoField.setValue(c.getCodigoMenu() != null ? c.getCodigoMenu() : "");
                 nombreField.setValue(c.getNombre() != null ? c.getNombre() : "");
-                descripcionField.setValue(c.getDescripcion() != null ? c.getDescripcion() : "");
+                categoriaField.setValue(c.getCategoria() != null ? c.getCategoria() : "");
+                precioField.setValue(c.getPrecio() != null ? c.getPrecio().toString() : "");
+                stockField.setValue(c.getDisponible() != null ? c.getDisponible().toString() : "");
             }
         });
 
         Button btnCrear = new Button("Crear", e -> {
-            Categoria c = new Categoria(nombreField.getValue(), descripcionField.getValue());
+            Plato c = new Plato(
+                codigoField.getValue(), 
+                nombreField.getValue(), 
+                categoriaField.getValue(), 
+                precioField.getValue() != null && !precioField.getValue().isEmpty() ? Double.parseDouble(precioField.getValue()) : null, 
+                stockField.getValue() != null && !stockField.getValue().isEmpty() ? Boolean.parseBoolean(stockField.getValue()) : null
+            );
             crudService.guardar(c);
             refrescar.run();
             idField.setValue(c.getId() != null ? c.getId().toString() : "");
-            Notification.show("Categoría guardada con ID: " + c.getId());
+            Notification.show("Plato guardado con ID: " + c.getId());
         });
         btnCrear.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button btnConsultar = new Button("Consultar", e -> {
-            Categoria c = crudService.buscarPorId(Categoria.class, parseId(idField));
+            Plato c = crudService.buscarPorId(Plato.class, parseId(idField));
             if (c != null) {
                 grid.asSingleSelect().setValue(c);
-                Notification.show("Encontrada: " + c.getNombre());
+                Notification.show("Encontrado: " + c.getNombre());
             } else {
-                Notification.show("No encontrada");
+                Notification.show("No encontrado");
             }
         });
 
         Button btnActualizar = new Button("Actualizar", e -> {
-            Categoria c = crudService.buscarPorId(Categoria.class, parseId(idField));
+            Plato c = crudService.buscarPorId(Plato.class, parseId(idField));
             if (c != null) {
+                c.setCodigoMenu(codigoField.getValue());
                 c.setNombre(nombreField.getValue());
-                c.setDescripcion(descripcionField.getValue());
+                c.setCategoria(categoriaField.getValue());
+                c.setPrecio(precioField.getValue() != null && !precioField.getValue().isEmpty() ? Double.parseDouble(precioField.getValue()) : null);
+                c.setDisponible(stockField.getValue() != null && !stockField.getValue().isEmpty() ? Boolean.parseBoolean(stockField.getValue()) : null);
+                
                 crudService.actualizar(c);
                 refrescar.run();
-                Notification.show("Categoría actualizada");
+                Notification.show("Plato actualizado");
             } else {
                 Notification.show("ID no encontrado");
             }
         });
 
         Button btnEliminar = new Button("Eliminar", e -> {
-            crudService.eliminar(Categoria.class, parseId(idField));
+            crudService.eliminar(Plato.class, parseId(idField));
             refrescar.run();
-            limpiar(idField, nombreField, descripcionField);
-            Notification.show("Categoría eliminada");
+            idField.clear();
+            codigoField.clear();
+            nombreField.clear();
+            categoriaField.clear();
+            precioField.clear();
+            stockField.clear();
+            Notification.show("Plato eliminado");
         });
         btnEliminar.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
         Button btnLimpiar = new Button("Limpiar", e -> {
-            limpiar(idField, nombreField, descripcionField);
+            idField.clear();
+            codigoField.clear();
+            nombreField.clear();
+            categoriaField.clear();
+            precioField.clear();
+            stockField.clear();
             grid.asSingleSelect().clear();
         });
 
