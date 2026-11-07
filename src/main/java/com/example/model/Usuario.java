@@ -18,7 +18,7 @@ public class Usuario {
     private String email;
     private String telefono;
     private String direccion;
-    private String rol; // 'admin', 'recepcionista', etc.
+    private String rol; // 'admin', 'usuario', etc.
     private String estado; // 'activo', 'inactivo', 'baneado'
     private LocalDateTime fechaRegistro;
 

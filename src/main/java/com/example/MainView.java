@@ -3,16 +3,17 @@ package com.example;
 import java.time.LocalDateTime;
 
 import com.example.model.Categoria;
-import com.example.model.Producto;
-import com.example.model.Pedido;
+import com.example.model.Mesero;
+import com.example.model.Proveedor;
 import com.example.model.Usuario;
 import com.example.service.CrudService;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -21,7 +22,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
-@PageTitle("Gestión de inventario RESTAURANTE")
+@PageTitle("Gestión CRUD - Sistema de Inventario")
 @Route("")
 public class MainView extends VerticalLayout {
 
@@ -35,108 +36,135 @@ public class MainView extends VerticalLayout {
 
         TabSheet tabs = new TabSheet();
         tabs.setWidthFull();
-        tabs.add("Productos", crearSeccionProductos());
+        tabs.add("Meseros", crearSeccionMeseros());
         tabs.add("Categorías", crearSeccionCategorias());
-        tabs.add("Pedidos", crearSeccionPedidos());
+        tabs.add("Proveedores", crearSeccionProveedores());
         tabs.add("Usuarios", crearSeccionUsuarios());
 
-        add(new H1("Sistema Inventario RESTAURANTE"), tabs);
+        add(new H2("Sistema de Inventario - CRUD"), tabs);
     }
 
     // ==========================================
-    // 1. PRODUCTOS
+    // 1. MESERO
     // ==========================================
-    private Component crearSeccionProductos() {
-        VerticalLayout layout = new VerticalLayout();
-        TextField idField = new TextField("ID");
-        TextField codigoField = new TextField("Código");
-        TextField nombreField = new TextField("Nombre");
-        TextField categoriaField = new TextField("Categoría");
-        TextField precioField = new TextField("Precio");
-        TextField stockField = new TextField("Stock");
+    private Component crearSeccionMeseros() {
+    VerticalLayout layout = new VerticalLayout();
 
-        FormLayout form = new FormLayout(idField, codigoField, nombreField, categoriaField, precioField, stockField);
+    TextField idField = new TextField("ID");
+    TextField nombreField = new TextField("Nombre");
+    TextField telefonoField = new TextField("Teléfono");
 
-        Grid<Producto> grid = new Grid<>(Producto.class, false);
-        grid.addColumn(Producto::getId).setHeader("ID").setAutoWidth(true);
-        grid.addColumn(Producto::getCodigo).setHeader("Código").setAutoWidth(true);
-        grid.addColumn(Producto::getNombre).setHeader("Nombre").setAutoWidth(true);
-        grid.addColumn(Producto::getCategoria).setHeader("Categoría").setAutoWidth(true);
-        grid.addColumn(Producto::getPrecio).setHeader("Precio").setAutoWidth(true);
-        grid.addColumn(Producto::getStock).setHeader("Stock").setAutoWidth(true);
+    ComboBox<String> turnoField = new ComboBox<>("Turnos");
+    turnoField.setItems("Mañana", "Tarde", "Noche");
 
-        Runnable refrescar = () -> grid.setItems(crudService.listarTodos(Producto.class));
+    FormLayout form = new FormLayout(
+        idField,
+        nombreField,
+        telefonoField,
+        turnoField
+    );
+
+    Grid<Mesero> grid = new Grid<>(Mesero.class, false);
+
+    grid.addColumn(m -> m.getId()).setHeader("ID").setAutoWidth(true);
+    grid.addColumn(m -> m.getNombre()).setHeader("Nombre").setAutoWidth(true);
+    grid.addColumn(m -> m.getTelefono()).setHeader("Teléfono").setAutoWidth(true);
+    grid.addColumn(m -> m.getTurno()).setHeader("Turnos").setAutoWidth(true);
+
+
+    Runnable refrescar = () -> grid.setItems(
+        crudService.listarTodos(Mesero.class)
+    );
+
+    refrescar.run();
+
+    grid.asSingleSelect().addValueChangeListener(e -> {
+        Mesero m = e.getValue();
+
+        if (m != null) {
+            idField.setValue(m.getId() != null ? m.getId().toString() : "");
+            nombreField.setValue(m.getNombre() != null ? m.getNombre() : "");
+            telefonoField.setValue(m.getTelefono() != null ? m.getTelefono() : "");
+            turnoField.setValue(m.getTurno() != null ? m.getTurno() : "");
+        }
+    });
+
+    Button btnCrear = new Button("Crear", e -> {
+
+        Mesero m = new Mesero(
+            null,
+            nombreField.getValue(),
+            telefonoField.getValue(),
+            turnoField.getValue()
+        );
+
+        crudService.guardar(m);
         refrescar.run();
 
-        grid.asSingleSelect().addValueChangeListener(e -> {
-            Producto p = e.getValue();
-            if (p != null) {
-                idField.setValue(p.getId() != null ? p.getId().toString() : "");
-                codigoField.setValue(p.getCodigo() != null ? p.getCodigo() : "");
-                nombreField.setValue(p.getNombre() != null ? p.getNombre() : "");
-                categoriaField.setValue(p.getCategoria() != null ? p.getCategoria() : "");
-                precioField.setValue(p.getPrecio() != null ? p.getPrecio().toString() : "");
-                stockField.setValue(p.getStock() != null ? p.getStock().toString() : "");
-            }
-        });
+        Notification.show("Mesero guardado con ID: " + m.getId());
+    });
 
-        Button btnCrear = new Button("Crear", e -> {
-            Producto p = new Producto(
-                codigoField.getValue(),
-                nombreField.getValue(),
-                categoriaField.getValue(),
-                parseDouble(precioField.getValue()),
-                parseInt(stockField.getValue())
-            );
-            crudService.guardar(p);
+    btnCrear.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+    Button btnConsultar = new Button("Consultar", e -> {
+
+        Mesero m = crudService.buscarPorId(Mesero.class, parseId(idField));
+
+        if (m != null) {
+            grid.asSingleSelect().setValue(m);
+            Notification.show("Encontrado: " + m.getNombre());
+        } else {
+            Notification.show("No encontrado");
+        }
+    });
+
+    Button btnActualizar = new Button("Actualizar", e -> {
+
+        Mesero m = crudService.buscarPorId(Mesero.class, parseId(idField));
+
+        if (m != null) {
+            m.setNombre(nombreField.getValue());
+            m.setTelefono(telefonoField.getValue());
+            m.setTurno(turnoField.getValue());
+
+            crudService.actualizar(m);
             refrescar.run();
-            idField.setValue(p.getId() != null ? p.getId().toString() : "");
-            Notification.show("Producto guardado con ID: " + p.getId());
-        });
-        btnCrear.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        Button btnConsultar = new Button("Consultar", e -> {
-            Producto p = crudService.buscarPorId(Producto.class, parseId(idField));
-            if (p != null) {
-                grid.asSingleSelect().setValue(p);
-                Notification.show("Encontrado: " + p.getNombre());
-            } else {
-                Notification.show("No encontrado");
-            }
-        });
+            Notification.show("Mesero actualizado");
+        } else {
+            Notification.show("ID no encontrado");
+        }
+    });
 
-        Button btnActualizar = new Button("Actualizar", e -> {
-            Producto p = crudService.buscarPorId(Producto.class, parseId(idField));
-            if (p != null) {
-                p.setCodigo(codigoField.getValue());
-                p.setNombre(nombreField.getValue());
-                p.setCategoria(categoriaField.getValue());
-                p.setPrecio(parseDouble(precioField.getValue()));
-                p.setStock(parseInt(stockField.getValue()));
-                crudService.actualizar(p);
-                refrescar.run();
-                Notification.show("Producto actualizado");
-            } else {
-                Notification.show("ID no encontrado");
-            }
-        });
+    Button btnEliminar = new Button("Eliminar", e -> {
 
-        Button btnEliminar = new Button("Eliminar", e -> {
-            crudService.eliminar(Producto.class, parseId(idField));
-            refrescar.run();
-            limpiar(idField, codigoField, nombreField, categoriaField, precioField, stockField);
-            Notification.show("Producto eliminado");
-        });
-        btnEliminar.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        crudService.eliminar(Mesero.class, parseId(idField));
+        refrescar.run();
 
-        Button btnLimpiar = new Button("Limpiar", e -> {
-            limpiar(idField, codigoField, nombreField, categoriaField, precioField, stockField);
-            grid.asSingleSelect().clear();
-        });
+        limpiar(idField, nombreField, telefonoField);
+        turnoField.clear();
 
-        layout.add(form, crearAcciones(btnCrear, btnConsultar, btnActualizar, btnEliminar, btnLimpiar), grid);
-        return layout;
-    }
+        Notification.show("Mesero eliminado");
+    });
+
+    btnEliminar.addThemeVariants(ButtonVariant.LUMO_ERROR);
+
+    Button btnLimpiar = new Button("Limpiar", e -> {
+
+        limpiar(idField, nombreField, telefonoField);
+        turnoField.clear();
+
+        grid.asSingleSelect().clear();
+    });
+
+    layout.add(
+        form,
+        crearAcciones(btnCrear, btnConsultar, btnActualizar, btnEliminar, btnLimpiar),
+        grid
+    );
+
+    return layout;
+}
 
     // ==========================================
     // 2. CATEGORÍAS
@@ -150,9 +178,9 @@ public class MainView extends VerticalLayout {
         FormLayout form = new FormLayout(idField, nombreField, descripcionField);
 
         Grid<Categoria> grid = new Grid<>(Categoria.class, false);
-        grid.addColumn(Categoria::getId).setHeader("ID").setAutoWidth(true);
-        grid.addColumn(Categoria::getNombre).setHeader("Nombre").setAutoWidth(true);
-        grid.addColumn(Categoria::getDescripcion).setHeader("Descripción").setAutoWidth(true);
+        grid.addColumn(c -> c.getId()).setHeader("ID").setAutoWidth(true);
+        grid.addColumn(c -> c.getNombre()).setHeader("Nombre").setAutoWidth(true);
+        grid.addColumn(c -> c.getDescripcion()).setHeader("Descripción").setAutoWidth(true);
 
         Runnable refrescar = () -> grid.setItems(crudService.listarTodos(Categoria.class));
         refrescar.run();
@@ -216,93 +244,93 @@ public class MainView extends VerticalLayout {
     }
 
     // ==========================================
-    // 3. PEDIDOS
+    // 3. PROVEEDORES
     // ==========================================
-    private Component crearSeccionPedidos() {
+    private Component crearSeccionProveedores() {
         VerticalLayout layout = new VerticalLayout();
         TextField idField = new TextField("ID");
-        TextField numeroMesaField = new TextField("Numero Mesa");
-        TextField descripcionPlatosField = new TextField("Descripción Platos");
-        TextField totalVentasField = new TextField("Total Ventas");
-        TextField horaPedidoField = new TextField("Hora Pedido");
-        TextField estadoField = new TextField("Estado");
+        TextField nombreField = new TextField("Nombre");
+        TextField contactoField = new TextField("Contacto");
+        TextField telefonoField = new TextField("Teléfono");
+        TextField emailField = new TextField("Email");
+        TextField direccionField = new TextField("Dirección");
 
-        FormLayout form = new FormLayout(idField, numeroMesaField, descripcionPlatosField, totalVentasField, horaPedidoField, estadoField);
+        FormLayout form = new FormLayout(idField, nombreField, contactoField, telefonoField, emailField, direccionField);
 
-        Grid<Pedido> grid = new Grid<>(Pedido.class, false);
-        grid.addColumn(Pedido::getId).setHeader("ID").setAutoWidth(true);
-        grid.addColumn(Pedido::getNumeroMesa).setHeader("Numero Mesa").setAutoWidth(true);
-        grid.addColumn(Pedido::getDescripcionPlatos).setHeader("Descripción Platos").setAutoWidth(true);
-        grid.addColumn(Pedido::getTotalVentas).setHeader("Total Ventas").setAutoWidth(true);
-        grid.addColumn(Pedido::getHoraPedido).setHeader("Hora Pedido").setAutoWidth(true);
-        grid.addColumn(Pedido::getEstado).setHeader("Estado").setAutoWidth(true);
+        Grid<Proveedor> grid = new Grid<>(Proveedor.class, false);
+        grid.addColumn(p -> p.getId()).setHeader("ID").setAutoWidth(true);
+        grid.addColumn(p -> p.getNombre()).setHeader("Nombre").setAutoWidth(true);
+        grid.addColumn(p -> p.getContacto()).setHeader("Contacto").setAutoWidth(true);
+        grid.addColumn(p -> p.getTelefono()).setHeader("Teléfono").setAutoWidth(true);
+        grid.addColumn(p -> p.getEmail()).setHeader("Email").setAutoWidth(true);
+        grid.addColumn(p -> p.getDireccion()).setHeader("Dirección").setAutoWidth(true);
 
-        Runnable refrescar = () -> grid.setItems(crudService.listarTodos(Pedido.class));
+        Runnable refrescar = () -> grid.setItems(crudService.listarTodos(Proveedor.class));
         refrescar.run();
 
         grid.asSingleSelect().addValueChangeListener(e -> {
-            Pedido p = e.getValue();
+            Proveedor p = e.getValue();
             if (p != null) {
                 idField.setValue(p.getId() != null ? p.getId().toString() : "");
-                numeroMesaField.setValue(p.getNumeroMesa() != null ? p.getNumeroMesa() : "");
-                descripcionPlatosField.setValue(p.getDescripcionPlatos() != null ? p.getDescripcionPlatos() : "");
-                totalVentasField.setValue(p.getTotalVentas() != null ? p.getTotalVentas() : "");
-                horaPedidoField.setValue(p.getHoraPedido() != null ? p.getHoraPedido() : "");
-                estadoField.setValue(p.getEstado() != null ? p.getEstado() : "");
+                nombreField.setValue(p.getNombre() != null ? p.getNombre() : "");
+                contactoField.setValue(p.getContacto() != null ? p.getContacto() : "");
+                telefonoField.setValue(p.getTelefono() != null ? p.getTelefono() : "");
+                emailField.setValue(p.getEmail() != null ? p.getEmail() : "");
+                direccionField.setValue(p.getDireccion() != null ? p.getDireccion() : "");
             }
         });
 
         Button btnCrear = new Button("Crear", e -> {
-            Pedido p = new Pedido(
-                numeroMesaField.getValue(),
-                descripcionPlatosField.getValue(),
-                totalVentasField.getValue(),
-                horaPedidoField.getValue(),
-                estadoField.getValue()
+            Proveedor p = new Proveedor(
+                nombreField.getValue(),
+                contactoField.getValue(),
+                telefonoField.getValue(),
+                emailField.getValue(),
+                direccionField.getValue()
             );
             crudService.guardar(p);
             refrescar.run();
             idField.setValue(p.getId() != null ? p.getId().toString() : "");
-            Notification.show("Pedido guardado con ID: " + p.getId());
+            Notification.show("Proveedor guardado con ID: " + p.getId());
         });
         btnCrear.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button btnConsultar = new Button("Consultar", e -> {
-            Pedido p = crudService.buscarPorId(Pedido.class, parseId(idField));
+            Proveedor p = crudService.buscarPorId(Proveedor.class, parseId(idField));
             if (p != null) {
                 grid.asSingleSelect().setValue(p);
-                Notification.show("Encontrado: " + p.getNumeroMesa());
+                Notification.show("Encontrado: " + p.getNombre());
             } else {
                 Notification.show("No encontrado");
             }
         });
 
         Button btnActualizar = new Button("Actualizar", e -> {
-            Pedido p = crudService.buscarPorId(Pedido.class, parseId(idField));
+            Proveedor p = crudService.buscarPorId(Proveedor.class, parseId(idField));
             if (p != null) {
-                p.setNumeroMesa(numeroMesaField.getValue());
-                p.setDescripcionPlatos(descripcionPlatosField.getValue());
-                p.setTotalVentas(totalVentasField.getValue());
-                p.setHoraPedido(horaPedidoField.getValue());
-                p.setEstado(estadoField.getValue());
+                p.setNombre(nombreField.getValue());
+                p.setContacto(contactoField.getValue());
+                p.setTelefono(telefonoField.getValue());
+                p.setEmail(emailField.getValue());
+                p.setDireccion(direccionField.getValue());
                 crudService.actualizar(p);
                 refrescar.run();
-                Notification.show("Pedido actualizado");
+                Notification.show("Proveedor actualizado");
             } else {
                 Notification.show("ID no encontrado");
             }
         });
 
         Button btnEliminar = new Button("Eliminar", e -> {
-            crudService.eliminar(Pedido.class, parseId(idField));
+            crudService.eliminar(Proveedor.class, parseId(idField));
             refrescar.run();
-            limpiar(idField, numeroMesaField, descripcionPlatosField, totalVentasField, horaPedidoField, estadoField);
-            Notification.show("Pedido eliminado");
+            limpiar(idField, nombreField, contactoField, telefonoField, emailField, direccionField);
+            Notification.show("Proveedor eliminado");
         });
         btnEliminar.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
         Button btnLimpiar = new Button("Limpiar", e -> {
-            limpiar(idField, numeroMesaField, descripcionPlatosField, totalVentasField, horaPedidoField, estadoField);
+            limpiar(idField, nombreField, contactoField, telefonoField, emailField, direccionField);
             grid.asSingleSelect().clear();
         });
 
@@ -327,13 +355,13 @@ public class MainView extends VerticalLayout {
         FormLayout form = new FormLayout(idField, nombreField, apellidoField, emailField, telefonoField, direccionField, rolField, estadoField);
 
         Grid<Usuario> grid = new Grid<>(Usuario.class, false);
-        grid.addColumn(Usuario::getId).setHeader("ID").setAutoWidth(true);
-        grid.addColumn(Usuario::getNombre).setHeader("Nombre").setAutoWidth(true);
-        grid.addColumn(Usuario::getApellido).setHeader("Apellido").setAutoWidth(true);
-        grid.addColumn(Usuario::getEmail).setHeader("Email").setAutoWidth(true);
-        grid.addColumn(Usuario::getTelefono).setHeader("Teléfono").setAutoWidth(true);
-        grid.addColumn(Usuario::getRol).setHeader("Rol").setAutoWidth(true);
-        grid.addColumn(Usuario::getEstado).setHeader("Estado").setAutoWidth(true);
+        grid.addColumn(u -> u.getId()).setHeader("ID").setAutoWidth(true);
+        grid.addColumn(u -> u.getNombre()).setHeader("Nombre").setAutoWidth(true);
+        grid.addColumn(u -> u.getApellido()).setHeader("Apellido").setAutoWidth(true);
+        grid.addColumn(u -> u.getEmail()).setHeader("Email").setAutoWidth(true);
+        grid.addColumn(u -> u.getTelefono()).setHeader("Teléfono").setAutoWidth(true);
+        grid.addColumn(u -> u.getRol()).setHeader("Rol").setAutoWidth(true);
+        grid.addColumn(u -> u.getEstado()).setHeader("Estado").setAutoWidth(true);
 
         Runnable refrescar = () -> grid.setItems(crudService.listarTodos(Usuario.class));
         refrescar.run();
